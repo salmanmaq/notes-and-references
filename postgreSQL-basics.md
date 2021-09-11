@@ -534,7 +534,7 @@ Combines two tables such that it includes all the records from the left table as
 SELECT * FROM person
 LEFT JOIN car ON car.id = person.car_id;
 ```
-This query would return all persons. Records of cars that are associated with any person via a car_id would be appended to the respective person. But those persons without a car_id value, or without a match for person.car_id = car.id, would not have any car details appended to their records. Those cars that do not have their car.id in a person.car_id would not be returned.
+This query would return all persons. Records of cars that are associated with any person via a `car_id` would be appended to the respective person. But those persons without a `car_id` value, or without a match for `person.car_id = car.id`, would not have any car details appended to their records. Those cars that do not have their `car.id` in a `person.car_id` would not be returned.
 
 To return persons who don't have a car, but with the (empty) car columns appended:
 ```SQL
@@ -549,7 +549,10 @@ Similar to `LEFT JOIN` but returns all records from the right table but only rec
 SELECT * FROM person
 RIGHT JOIN car ON car.id = person.car_id;
 ```
-This query would return all cars. Records of persons that are associated with any car via a car_id would be appended to the respective car. But those persons without a car_id value, or without a match for person.car_id = car.id, would not be appended to any car record. Those persons without a matching person.car_id = car.id would not be returned.
+This query would return all cars. Records of persons that are associated with any car via a `car_id` would be appended to the respective car. But those persons without a `car_id` value, or without a match for `person.car_id = car.id`, would not be appended to any car record. Those persons without a matching `person.car_id = car.id` would not be returned.
+
+## Export query results to CSV
+
 
 ## Reference
 [Learn PostgreSQL Tutorial - Full Course for Beginners](https://www.youtube.com/watch?v=qw--VYLpxG4) by [freecodecamp](https://www.freecodecamp.org/)
