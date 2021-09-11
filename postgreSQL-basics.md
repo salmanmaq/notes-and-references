@@ -552,6 +552,82 @@ RIGHT JOIN car ON car.id = person.car_id;
 This query would return all cars. Records of persons that are associated with any car via a `car_id` would be appended to the respective car. But those persons without a `car_id` value, or without a match for `person.car_id = car.id`, would not be appended to any car record. Those persons without a matching `person.car_id = car.id` would not be returned.
 
 ## Export query results to CSV
+```SQL
+/* Syntax: \copy (query) TO 'output_file_path.csv' DELIMITER ',' CSV HEADER; */
+\copy (SELECT * FROM person LEFT JOIN car ON person.car_id = car.id ORDER BY person.id) TO 'output_file_path.csv' DELIMITER ',' CSV HEADER;
+```
+
+## Export query results to JSON
+```SQL
+/* Syntax: 
+\t -- Toggles tuple only mode (Turn on)
+\a -- Toggled aligned output mode (Toggle unaligned)
+\o path_to_result.json -- Output file name (\o again for terminal output)
+SELECT JSON_AGG(t) FROM (SELECT * FROM table_name) t; -- SELECT JSON_AGG(t) FROM (query) t;
+\*/
+\t
+\a
+\o path_to_result.json 
+SELECT JSON_AGG(t) FROM (SELECT * FROM person LEFT JOIN car ON car.id = person.car_id ORDER BY person.id) t;
+```
+[Reference](https://dba.stackexchange.com/questions/90482/export-postgres-table-as-json)
+
+## Export query results to XML
+```SQL
+/* Syntax: 
+SELECT QUERY_TO_XML (
+ 'query as text in single quotes',
+ nulls, -- (true or false) To include null values or not
+ tableforest, (true or false) Each row in separate xml document or not
+ targetns -- Target namespace
+);
+\*/
+\o path_to_result.xml
+SELECT QUERY_TO_XML(
+ 'SELECT * from person
+ LEFT JOIN car ON car.id = person.car_id
+ ORDER BY person.id', 
+ true,
+ false,
+ ''
+);
+```
+[Reference](https://kags.me.ke/post/how-to-export-data-from-database-toxml/)
+
+## More about `BIGSERIAL`
+`BIGSERIAL` creates a `BIGINT` data type, but additionally creates a sequence and a `nextval` function that auto-increments the value for that column. For example, in the `person` table, the `id` has an associated Default `nextval('person_id_seq'::regclass)`. We can check for sequences using:
+```
+\ds
+```
+We can also `SELECT` from sequences:
+```SQL
+SELECT * FROM person_id_seq;
+SELECT * FROM car_id_seq;
+/* These return the last_value, the log_cnt (number of times called), 
+and is_called (indicating whether the sequence has been called or not) */
+
+SELECT last_value from person_id_seq;
+
+SELECT nextval('person_id_seq'::regclass);
+/* Calls the function nextval on the person_id_seq and increments 
+last_value by 1. We can check using below */
+SELECT * FROM person_id_seq;
+```
+If we now add another person, they would get an `id` based on the incremented `last_value`
+```SQL
+INSERT INTO person (
+ first_name,
+ last_name,
+ gender,
+ date_of_birth,
+ country_of_birth
+) VALUES ('Alexa', 'Jones', 'Female', DATE '2009-01-18', 'China');
+```
+To reset the sequence to a desired value:
+```SQL
+ALTER SEQUENCE person_id_seq RESTART WITH 5;
+/* This changes person_id_seq.last_value to 5 */
+```
 
 
 ## Reference
