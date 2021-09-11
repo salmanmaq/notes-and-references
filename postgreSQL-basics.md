@@ -11,6 +11,10 @@ Describe the database:
 ```
 \d
 ```
+Describe only the database tables, and not sequences. Sequences are obtained when using the `BIGSERIAL` as the type of a column - see next section. Other scenarios would likely generate sequences too.
+```
+\dt
+```
 List all databases:
 ```
 \l
@@ -295,7 +299,7 @@ INSERT INTO person (
  /* We can pass an array of column names here to compose a PRIMARY KEY 
  based off multiple columns */
 ```
-This would not work if there are duplicate values in the intended `PRIMARY KEY` column and would return an error. We can do that by removing one or more of the rows where the uniqueness constraint is defied. We can [[##DELETE records]] to remove the problematic entries. The command should work fine afterwards.
+This would not work if there are duplicate values in the intended `PRIMARY KEY` column and would return an error. We can do that by removing one or more of the rows where the uniqueness constraint is defied. We can [DELETE records](#delete-records) to remove the problematic entries. The command should work fine afterwards.
 
 ## `UNIQUE` constraint
 ```SQL
@@ -335,6 +339,8 @@ DELETE FROM person WHERE id = 1;
 DELETE FROM person WHERE gender = 'Female' AND country_of_birth='Nigeria';
 ```
 
+See Also: [Foreign keys > Deleting a record with a foreign key](#deleting-a-record-with-a-foreign-key)
+
 ## `UPDATE` records
 The `SET` keyword
 ```SQL
@@ -361,7 +367,7 @@ INSERT INTO person (
  ON CONFLICT (id) DO NOTHING;
  ```
 
-## Upsert (`DO UPDATE`, `EXCLUDED`)
+## Upsert
 However, when there is a conflict, we might not want to `DO NOTHING`. Suppose the `email` column has a `UNIQUE` constraint and a record with the email `john@doe.com` has already been inserted with id `1002`. Suppose the user mistakenly entered an incorrect email and tries to enter a correct email now i.e. `johndoe@gmail.com`. We can process such as scenario as:
 ```SQL
 INSERT INTO person (
@@ -375,7 +381,7 @@ INSERT INTO person (
  ) VALUES(1002, 'John', 'Doe', 'johndoe@gmai.com', 'Male', DATE '2020-12-31', 'Australia')
  ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email;
  ```
- We can update multiple values as well:
+ `DO UPDATE` and `EXCLUDED` keywords. We can update multiple values as well:
  ```SQL
  INSERT INTO person (
  id, 
@@ -389,8 +395,162 @@ INSERT INTO person (
  ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, 
  first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name;
 ```
-
+This is probably not a good example of Upsert. I think a better example with Microsoft SQL Server can be found [here](https://towardsdatascience.com/python-to-sql-upsert-safely-easily-and-fast-17a854d4ec5a).
 	
+## Foreign keys
+Dropped tables `person` and `car` so that we can recreate new tables with the appropriate schema. We use the `REFERENCE` keyword to link the `car_id` column in table `person` with `id` in the table `car`.
+```SQL
+CREATE TABLE car (
+ id BIGSERIAL NOT NULL PRIMARY KEY,
+ make VARCHAR(100) NOT NULL,
+ model VARCHAR(100) NOT NULL,
+ price NUMERIC(19, 2) NOT NULL
+);
+/* The car table needs to be created first as the person table 
+references it. */
+
+CREATE TABLE person (
+ id BIGSERIAL NOT NULL PRIMARY KEY,
+ first_name VARCHAR(50) NOT NULL,
+ last_name VARCHAR(50) NOT NULL,
+ email VARCHAR(150),
+ gender VARCHAR(20) NOT NULL,
+ date_of_birth DATE NOT NULL,
+ country_of_birth VARCHAR(50),
+ car_id BIGINT REFERENCES car (id),
+ UNIQUE(car_id) /* Makes the car_id unique i.e. one car can only be owned
+ by a single person */
+);
+```
+Create some records for the `person` table without associating with a `car_id` for now:
+```SQL
+INSERT INTO person (
+ first_name,
+ last_name,
+ gender,
+ email,
+ date_of_birth,
+ country_of_birth
+) VALUES ('John', 'Doe', 'Male', 'john@doe.com', DATE '1994-12-23', 'Pakistan');
+
+INSERT INTO person (
+ first_name,
+ last_name,
+ gender,
+ email,
+ date_of_birth,
+ country_of_birth
+) VALUES ('Jane', 'Doe', 'Female', 'jane@doe.com', DATE '1992-04-21', 'United States');
+
+INSERT INTO person (
+ first_name,
+ last_name,
+ gender,
+ email,
+ date_of_birth,
+ country_of_birth
+) VALUES ('Janetta', 'Doelle', 'Nonbinary', 'janetta@doelle.com', DATE '2000-11-03', 'Ghana');
+
+INSERT INTO person (
+ first_name,
+ last_name,
+ gender,
+ date_of_birth,
+ country_of_birth
+) VALUES ('John', 'Smith', 'Male', DATE '1984-04-30', 'England');
+```
+Create some records for the `car` table:
+```SQL
+INSERT INTO car (
+ make,
+ model,
+ price
+) VALUES ('Land Rover', 'Sterling', '87665.38');
+ 
+INSERT INTO car (
+ make,
+ model,
+ price
+) VALUES ('Honda', 'Civic', '15731.14');
+ 
+INSERT INTO car (
+ make,
+ model,
+ price
+) VALUES ('Suzuki', 'Mehran', '5000.00');
+
+INSERT INTO car (
+ make,
+ model,
+ price
+) VALUES ('Mazda', 'RX-8', '51272.48');
+```
+Assign cars to people:
+```SQL
+UPDATE person SET car_id = 2 WHERE id = 1;
+UPDATE person SET car_id = 45 WHERE id = 1;
+/* Will throw an error as car_id = 45 does not exist in the car table */
+
+UPDATE person SET car_id = 2 WHERE id = 2;
+/* This will give an error as car_id has a UNIQUE constraint */
+```
+
+### Deleting a record with a foreign key
+If we have a `person` with a `car_id`, we would not be able to delete that `car` record as it would be referenced in the person table. That would result in a foreign key constraint error. Do do that, we would first need to update that specific person record and set the `car_id` to `NULL` such that we "de-reference" or "disassociate" that car from any person. Once we have done that, we should be able to DELETE the said `car` record. For example:
+```
+UPDATE person SET car_id = 4 WHERE id = 4;
+/* First associate a car with a person */
+
+DELETE FROM car WHERE id = 4;
+/* This would thow an error as it is linked to person with id = 4 */
+
+UPDATE person SET car_id = NULL WHERE id = 4;
+/* First SET the relevant car_id to NULL */
+
+DELETE FROM car WHERE id = 4;
+/* We should be able to delete the car record now */
+```
+
+## Inner `JOIN`
+Used to combine two tables and return **records that have a foreign key present in both tables**
+```SQL
+SELECT * FROM person
+JOIN car ON person.car_id = car.id;
+```
+Sometimes the results may not display so well so we might want to turn on expanded display. It can be toggled on and off using:
+```
+\x
+```
+We can `SELECT` specific columns from both tables:
+```SQL
+SELECT person.first_name, car.make, car.model, car.price
+FROM person
+JOIN car ON person.car_id = car.id;
+```
+
+## `LEFT JOIN`
+Combines two tables such that it includes all the records from the left table as well as all corresponding records from the right table that have a matching foreign key. This query would not return any records in the right table that do not have have any association with the left table. In this case, the `person` table is the left table and the `car` table is the right table.
+```SQL
+SELECT * FROM person
+LEFT JOIN car ON car.id = person.car_id;
+```
+This query would return all persons. Records of cars that are associated with any person via a car_id would be appended to the respective person. But those persons without a car_id value, or without a match for person.car_id = car.id, would not have any car details appended to their records. Those cars that do not have their car.id in a person.car_id would not be returned.
+
+To return persons who don't have a car, but with the (empty) car columns appended:
+```SQL
+SELECT * FROM person
+LEFT JOIN car ON car.id = person.car_id
+WHERE car.* IS NULL;
+```
+
+## `RIGHT JOIN`
+Similar to `LEFT JOIN` but returns all records from the right table but only records from the left table that have any association with the right table (i.e. a matching foreign key) would be returned.
+```SQL
+SELECT * FROM person
+RIGHT JOIN car ON car.id = person.car_id;
+```
+This query would return all cars. Records of persons that are associated with any car via a car_id would be appended to the respective car. But those persons without a car_id value, or without a match for person.car_id = car.id, would not be appended to any car record. Those persons without a matching person.car_id = car.id would not be returned.
+
 ## Reference
 [Learn PostgreSQL Tutorial - Full Course for Beginners](https://www.youtube.com/watch?v=qw--VYLpxG4) by [freecodecamp](https://www.freecodecamp.org/)
 
