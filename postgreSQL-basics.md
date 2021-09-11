@@ -1,7 +1,9 @@
 # Learn PostgreSQL Tutorial - Full Course for Beginners
 
+Uses PostgresQL-12
+
 ## Create a database
-In the `psql` terminal:
+In the `postgres` `psql` terminal:
 ```SQL
 CREATE DATABASE test;
 ```
@@ -41,15 +43,16 @@ Describe the table:
 ```
 \d person
 ```
-Insert data into table:
+`INSERT` data into table:
 ```SQL
 INSERT INTO person (first_name, last_name, email, gender, date_of_birth, country_of_birth) VALUES ('Phil', 'Mundell', 'pmundell0@weebly.com', 'Agender', DATE '2021-05-22', 'Thailand');
+/* Use single quotes '' for text, not double quotes "" */
 ```
-We can also insert multiple rows into a table by inserting from a `.sql` file that contains lots of `INSERT INTO` commands like above. In the postgres `psql` terminal:
+We can also insert multiple rows into a table by inserting from a `.sql` file that contains lots of `INSERT INTO` commands like above. In the `psql` terminal:
 ```
 \i path_to_sql_file.sql
 ```
-[Mockaroo](https://www.mockaroo.com/) can be used to generate mock data.
+[Mockaroo](https://www.mockaroo.com/) can be used to generate mock data. We can generate data multiple times and concatenate it manually.
 
 Drop a table:
 ```
@@ -269,6 +272,124 @@ CREATE TABLE car (
 	The first query extracts age in the timestamp format, while the second one only chooses year from the age and returns that.
 
 ## More on Primary Keys
+For tables with a `PRIMARY KEY`, we can't have multiple entries with the same primary key. The below example would give a duplicate value error, where the value should be unique across the column.
+```SQL
+INSERT INTO person (
+ id,
+ first_name,
+ last_name,
+ gender,
+ date_of_birth,
+ country_of_birth
+ ) VALUES(1, 'John', 'Doe', 'Male', DATE '2020-12-31', 'Hong Kong');
+ ```
+ We can, however, drop this uniqueness constraint by `ALTER`ing the table to remove the said constraint.
+ ```SQL
+ ALTER TABLE person DROP CONSTRAINT person_pkey;
+ ```
+ This would drop the constraint and now the query mentioned above would work.
+ 
+ We can add the primary key again:
+ ```SQL
+ ALTER TABLE person ADD PRIMARY KEY (id)
+ /* We can pass an array of column names here to compose a PRIMARY KEY 
+ based off multiple columns */
+```
+This would not work if there are duplicate values in the intended `PRIMARY KEY` column and would return an error. We can do that by removing one or more of the rows where the uniqueness constraint is defied. We can [[##DELETE records]] to remove the problematic entries. The command should work fine afterwards.
+
+## `UNIQUE` constraint
+```SQL
+ALTER TABLE person ADD CONSTRAINT unique_email_address UNIQUE (email);
+/* We name the constraint as unique_email constraint. We can also pass 
+multiple columns to the array. */
+```
+This ensures that all records have a unique email address. Adding a non-unique value for email in a new record will return an error.
+
+Drop the `UNIQUE` constraint
+```SQL
+ALTER TABLE person DROP CONSTRAINT unique_email_address;
+```
+
+Another method to create a `UNIQUE` constraint:
+```SQL
+ALTER TABLE person ADD UNIQUE (email);
+```
+Using this method, `postgres` defines the constraint name itself. In this case, the constraint name would be:
+```
+person_email_key | <table_name>_<column_name>_key)
+```
+
+
+## `CHECK` constraint
+Allows to check against a boolean condition. For example, it could be used to specify what values a particular column accepts. Suppose we want to allow only specific values of `country_of_birth`:
+```SQL
+ALTER TABLE person ADD CONSTRAINT country_of_birth_constraint CHECK (country_of_birth IN ('Pakistan, China, US, Brazil, India, Indonesia, Germany'));
+ALTER TABLE person ADD CONSTRAINT country_of_birth_constraint CHECK (country_of_birth <> 'Wakanda');
+```
+The add constraint will fail if there's already data in the table which violates the specified constraint.
+
+## `DELETE` records
+```SQL
+DELETE FROM person; -- !!!DANGEROUS - DELETES ALL RECORDS IN TABLE!!!
+DELETE FROM person WHERE id = 1;
+DELETE FROM person WHERE gender = 'Female' AND country_of_birth='Nigeria';
+```
+
+## `UPDATE` records
+The `SET` keyword
+```SQL
+UPDATE person SET email = 'jane@doe.com' WHERE id = 10;
+UPDATE person SET email = 'jane@doe.com';
+/* DANGEROUS - Not using a WHERE clause will update all records */
+
+UPDATE person SET first_name = 'Jane', last_name = 'Doe', gender = 'Female'
+WHERE id = 10;
+```
+
+## `ON CONFLICT` `DO NOTHING`
+Allows us to handle conflict scenarios such as duplicate key errors i.e. where a column is either a `PRIMARY KEY` or has a `UNIQUE` constraint. Doing this results in not throwing an error and no records inserted either.
+```SQL
+INSERT INTO person (
+ id,
+ first_name,
+ last_name,
+ email,
+ gender,
+ date_of_birth,
+ country_of_birth
+ ) VALUES(1, 'John', 'Doe', 'john@doe.com', 'Male', DATE '2020-12-31', 'Australia')
+ ON CONFLICT (id) DO NOTHING;
+ ```
+
+## Upsert (`DO UPDATE`, `EXCLUDED`)
+However, when there is a conflict, we might not want to `DO NOTHING`. Suppose the `email` column has a `UNIQUE` constraint and a record with the email `john@doe.com` has already been inserted with id `1002`. Suppose the user mistakenly entered an incorrect email and tries to enter a correct email now i.e. `johndoe@gmail.com`. We can process such as scenario as:
+```SQL
+INSERT INTO person (
+ id, 
+ first_name,
+ last_name,
+ email,
+ gender,
+ date_of_birth,
+ country_of_birth
+ ) VALUES(1002, 'John', 'Doe', 'johndoe@gmai.com', 'Male', DATE '2020-12-31', 'Australia')
+ ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email;
+ ```
+ We can update multiple values as well:
+ ```SQL
+ INSERT INTO person (
+ id, 
+ first_name,
+ last_name,
+ email,
+ gender,
+ date_of_birth,
+ country_of_birth
+ ) VALUES(1002, 'Doe', 'John', 'doe@john.com', 'Male', DATE '2020-12-31', 'Australia')
+ ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, 
+ first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name;
+```
+
 	
 ## Reference
 [Learn PostgreSQL Tutorial - Full Course for Beginners](https://www.youtube.com/watch?v=qw--VYLpxG4) by [freecodecamp](https://www.freecodecamp.org/)
