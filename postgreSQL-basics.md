@@ -652,7 +652,6 @@ UUIDs are a great candidate for `PRIMARY KEY` in tables as they are more secure 
 
 Create new tables to use UUID as `PRIMARY KEY`:
 ```SQL
-```SQL
 CREATE TABLE car (
  car_uid UUID NOT NULL PRIMARY KEY,
  make VARCHAR(100) NOT NULL,
