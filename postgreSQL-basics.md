@@ -11,7 +11,7 @@ Describe the database:
 ```
 \d
 ```
-Describe only the database tables, and not sequences. Sequences are obtained when using the `BIGSERIAL` as the type of a column - see next section. Other scenarios would likely generate sequences too.
+Describe only the database tables:
 ```
 \dt
 ```
@@ -41,7 +41,7 @@ CREATE TABLE person (
  country_of_birth VARCHAR(50)
 );
 ```
-`BIGSERIAL` auto-increments the id whenever a new row is added. `NOT NULL` indicates that the entry can not be Null.
+`BIGSERIAL` auto-increments the id whenever a new row is added. `NOT NULL` indicates that the entry can not be Null. See more about [BIGSERIAL and sequences](#more-about-bigserial-and-sequences).
 
 Describe the table:
 ```
@@ -594,7 +594,7 @@ SELECT QUERY_TO_XML(
 ```
 [Reference](https://kags.me.ke/post/how-to-export-data-from-database-toxml/)
 
-## More about `BIGSERIAL`
+## More about `BIGSERIAL` and sequences
 `BIGSERIAL` creates a `BIGINT` data type, but additionally creates a sequence and a `nextval` function that auto-increments the value for that column. For example, in the `person` table, the `id` has an associated Default `nextval('person_id_seq'::regclass)`. We can check for sequences using:
 ```
 \ds
@@ -629,6 +629,119 @@ ALTER SEQUENCE person_id_seq RESTART WITH 5;
 /* This changes person_id_seq.last_value to 5 */
 ```
 
+## Extensions
+Functions that can add extra functionality to your database.
+
+Check list of all available extensions:
+```SQL
+SELECT * FROM pg_available_extensions;
+```
+The `uuid-ossp` extension can be used to generate UUIDs. Install the extension using:
+```SQL
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+```
+To generate a UUID, we have to call a function. To examine the list of available functions:
+```
+\df
+```
+To generate a UUID, we can select a UUID generation function from the functions listed above and invoke it:
+```SQL
+SELECT uuid_generate_v4();
+```
+UUIDs are a great candidate for `PRIMARY KEY` in tables as they are more secure (difficult to guess). They also make migrating data across databases much easier as they are globally unique.
+
+Create new tables to use UUID as `PRIMARY KEY`:
+```SQL
+```SQL
+CREATE TABLE car (
+ car_uid UUID NOT NULL PRIMARY KEY,
+ make VARCHAR(100) NOT NULL,
+ model VARCHAR(100) NOT NULL,
+ price NUMERIC(19, 2) NOT NULL
+);
+/* The car table needs to be created first as the person table 
+references it. */
+
+CREATE TABLE person (
+ person_uid UUID NOT NULL PRIMARY KEY,
+ first_name VARCHAR(50) NOT NULL,
+ last_name VARCHAR(50) NOT NULL,
+ email VARCHAR(150),
+ gender VARCHAR(20) NOT NULL,
+ date_of_birth DATE NOT NULL,
+ country_of_birth VARCHAR(50),
+ car_uid UUID REFERENCES car (car_uid),
+ UNIQUE(car_uid), /* Makes the car_id unique i.e. one car can only be owned
+ by a single person */
+ UNIQUE(email)
+);
+```
+`INSERT` records into tables:
+```SQL
+INSERT INTO person (
+ person_uid,
+ first_name,
+ last_name,
+ gender,
+ email,
+ date_of_birth,
+ country_of_birth
+) VALUES (uuid_generate_v4(), 'John', 'Doe', 'Male', 'john@doe.com', DATE '1994-12-23', 'Pakistan');
+
+INSERT INTO person (
+ person_uid,
+ first_name,
+ last_name,
+ gender,
+ email,
+ date_of_birth,
+ country_of_birth
+) VALUES (uuid_generate_v4(), 'Jane', 'Doe', 'Female', 'jane@doe.com', DATE '1992-04-21', 'United States');
+
+INSERT INTO person (
+ person_uid,
+ first_name,
+ last_name,
+ gender,
+ email,
+ date_of_birth,
+ country_of_birth
+) VALUES (uuid_generate_v4(), 'Janetta', 'Doelle', 'Nonbinary', 'janetta@doelle.com', DATE '2000-11-03', 'Ghana');
+
+
+INSERT INTO car (
+ car_uid,
+ make,
+ model,
+ price
+) VALUES (uuid_generate_v4(), 'Land Rover', 'Sterling', '87665.38');
+
+INSERT INTO car (
+ car_uid,
+ make,
+ model,
+ price
+) VALUES (uuid_generate_v4(), 'Honda', 'Civic', '15731.14');
+
+INSERT INTO car (
+ car_uid,
+ make,
+ model,
+ price
+) VALUES (uuid_generate_v4(), 'Mazda', 'RX-8', '51272.48');
+```
+Add cars to persons:
+```SQL
+UPDATE person SET car_uid = '74314404-c37c-448e-94b8-fac4c81b2e32' WHERE person_uid = '550b2f29-21a8-43bb-a17c-eb1b626e5ae0';
+UPDATE person SET car_uid = '8078a5e5-d501-48a4-8ce1-c392e80945b9' WHERE person_uid = '2c04379c-416b-4f3c-9e94-469ec6c8eed8';
+```
+Since since both the primary key and foreign key for `car_uid` are now same (in both tables - i.e. in `person.car_uid` and `car.car_uid`), we can person `JOIN` using a different syntax (`USING`):
+```SQL
+SELECT * FROM person
+JOIN car USING (car_uid);
+SELECT * FROM person
+LEFT JOIN car USING (car_uid);
+```
 
 ## Reference
 [Learn PostgreSQL Tutorial - Full Course for Beginners](https://www.youtube.com/watch?v=qw--VYLpxG4) by [freecodecamp](https://www.freecodecamp.org/)
