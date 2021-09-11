@@ -497,7 +497,7 @@ UPDATE person SET car_id = 2 WHERE id = 2;
 
 ### Deleting a record with a foreign key
 If we have a `person` with a `car_id`, we would not be able to delete that `car` record as it would be referenced in the person table. That would result in a foreign key constraint error. Do do that, we would first need to update that specific person record and set the `car_id` to `NULL` such that we "de-reference" or "disassociate" that car from any person. Once we have done that, we should be able to DELETE the said `car` record. For example:
-```
+```SQL
 UPDATE person SET car_id = 4 WHERE id = 4;
 /* First associate a car with a person */
 
