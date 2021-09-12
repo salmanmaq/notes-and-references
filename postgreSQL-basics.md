@@ -742,6 +742,22 @@ SELECT * FROM person
 LEFT JOIN car USING (car_uid);
 ```
 
+## Insert data into table from CSV
+Generate mock data from Mockaroo into a CSV, that aligns with the table schema. First few lines:
+```CSV
+car_uid,make,model,price
+963bf560-5112-4165-9e7b-924a92a8ca2a,GMC,Jimmy,21607.75
+89f87cb6-4de8-4571-a0f7-5383aac23977,Ford,Mustang,56445.94
+b5a103dc-8b2c-441c-95b7-c9bbecde092f,Ferrari,599 GTB Fiorano,66597.91
+8e7bc390-3466-4faa-b4cf-02b0d4ba4623,Bentley,Mulsanne,29533.61
+826dd27a-7e8f-4944-b46c-16930ce43e42,Hyundai,Veracruz,79697.26
+```
+Import the CSV into the table:
+```SQL
+/* Syntax: \COPY <table name> FROM 'path_to_csv.csv' DELIMITER ',' CSV HEADER; */
+\COPY car FROM 'path_to_csv.csv' DELIMITER ',' CSV HEADER;
+```
+
 ## Reference
 [Learn PostgreSQL Tutorial - Full Course for Beginners](https://www.youtube.com/watch?v=qw--VYLpxG4) by [freecodecamp](https://www.freecodecamp.org/)
 
